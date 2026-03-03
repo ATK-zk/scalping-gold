@@ -1,0 +1,773 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SCALP.SYS :: Terminal v2.1</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --terminal-bg: #000000;
+            --terminal-green: #00ff41;
+            --terminal-cyan: #00e5ff;
+            --terminal-red: #ff0040;
+            --terminal-yellow: #ffea00;
+            --terminal-gray: #1a1a1a;
+            --text-dim: #00aa2e;
+            --text-ghost: #004d1a;
+        }
+
+        @keyframes scanline {
+            0% { transform: translateY(-100%); }
+            100% { transform: translateY(100vh); }
+        }
+
+        @keyframes flicker {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.97; }
+        }
+
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0; }
+        }
+
+        @keyframes glitch {
+            0%, 90%, 100% { transform: translate(0, 0); }
+            92% { transform: translate(-2px, 2px); }
+            94% { transform: translate(2px, -2px); }
+            96% { transform: translate(-1px, 1px); }
+        }
+
+        body {
+            font-family: 'Share Tech Mono', monospace;
+            background: var(--terminal-bg);
+            color: var(--terminal-green);
+            height: 100vh;
+            overflow: hidden;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* CRT Effects */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: repeating-linear-gradient(
+                0deg,
+                rgba(0, 255, 65, 0.03) 0px,
+                transparent 1px,
+                transparent 2px,
+                rgba(0, 255, 65, 0.03) 3px
+            );
+            pointer-events: none;
+            z-index: 1000;
+            animation: flicker 0.15s infinite;
+        }
+
+        body::after {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(transparent, var(--terminal-green), transparent);
+            opacity: 0.2;
+            animation: scanline 8s linear infinite;
+            pointer-events: none;
+            z-index: 999;
+        }
+
+        .terminal {
+            width: 100vw;
+            height: 100vh;
+            padding: 20px;
+            display: grid;
+            grid-template-rows: auto 1fr auto;
+            gap: 15px;
+            position: relative;
+            z-index: 10;
+        }
+
+        /* Header */
+        .header {
+            border: 1px solid var(--terminal-green);
+            padding: 12px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 0 20px rgba(0, 255, 65, 0.3);
+        }
+
+        .sys-info {
+            display: flex;
+            gap: 30px;
+            font-size: 12px;
+        }
+
+        .sys-title {
+            font-family: 'Orbitron', monospace;
+            font-size: 16px;
+            font-weight: 900;
+            letter-spacing: 2px;
+            text-shadow: 0 0 10px var(--terminal-green);
+        }
+
+        .blink {
+            animation: blink 1s step-start infinite;
+        }
+
+        /* Main Grid */
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 15px;
+            overflow: hidden;
+        }
+
+        /* Left Panel - Assets */
+        .assets-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .panel {
+            border: 1px solid var(--terminal-green);
+            padding: 15px;
+            background: rgba(0, 255, 65, 0.02);
+            box-shadow: 0 0 15px rgba(0, 255, 65, 0.2);
+            position: relative;
+        }
+
+        .panel-title {
+            font-size: 11px;
+            letter-spacing: 2px;
+            margin-bottom: 12px;
+            color: var(--terminal-green);
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .asset-btn {
+            width: 100%;
+            padding: 20px;
+            background: var(--terminal-gray);
+            border: 2px solid var(--text-ghost);
+            color: var(--terminal-green);
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: left;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .asset-btn::before {
+            content: '> ';
+            position: absolute;
+            left: 10px;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .asset-btn:hover {
+            background: rgba(0, 255, 65, 0.1);
+            border-color: var(--terminal-green);
+            padding-left: 25px;
+            box-shadow: 0 0 20px rgba(0, 255, 65, 0.3);
+        }
+
+        .asset-btn:hover::before {
+            opacity: 1;
+        }
+
+        .asset-name {
+            font-family: 'Orbitron', monospace;
+            font-weight: 700;
+            font-size: 20px;
+            margin-bottom: 5px;
+        }
+
+        .asset-code {
+            font-size: 11px;
+            color: var(--text-dim);
+            letter-spacing: 1px;
+        }
+
+        /* Strategy Panel */
+        .strategy-box {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+        }
+
+        .strategy-label {
+            font-size: 10px;
+            letter-spacing: 2px;
+            color: var(--text-ghost);
+            margin-bottom: 10px;
+        }
+
+        .strategy-value {
+            font-family: 'Orbitron', monospace;
+            font-size: 48px;
+            font-weight: 900;
+            color: var(--terminal-green);
+            text-shadow: 0 0 20px rgba(0, 255, 65, 0.6);
+            line-height: 1;
+        }
+
+        /* Right Panel - Results */
+        .results-panel {
+            border: 1px solid var(--terminal-green);
+            padding: 20px;
+            background: rgba(0, 255, 65, 0.02);
+            box-shadow: 0 0 15px rgba(0, 255, 65, 0.2);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+        .results-panel::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .results-panel::-webkit-scrollbar-track {
+            background: var(--terminal-gray);
+        }
+
+        .results-panel::-webkit-scrollbar-thumb {
+            background: var(--terminal-green);
+            box-shadow: 0 0 5px var(--terminal-green);
+        }
+
+        /* Loading */
+        .loading {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            gap: 20px;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid var(--text-ghost);
+            border-top-color: var(--terminal-green);
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Signal Display */
+        .signal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid var(--text-ghost);
+        }
+
+        .signal-direction {
+            font-family: 'Orbitron', monospace;
+            font-size: 48px;
+            font-weight: 900;
+            letter-spacing: 2px;
+        }
+
+        .signal-direction.long {
+            color: var(--terminal-green);
+            text-shadow: 0 0 30px rgba(0, 255, 65, 0.8);
+            animation: glitch 5s infinite;
+        }
+
+        .signal-direction.short {
+            color: var(--terminal-red);
+            text-shadow: 0 0 30px rgba(255, 0, 64, 0.8);
+            animation: glitch 5s infinite;
+        }
+
+        .signal-direction.neutral {
+            color: var(--terminal-cyan);
+            text-shadow: 0 0 30px rgba(0, 229, 255, 0.6);
+        }
+
+        .confidence {
+            text-align: right;
+        }
+
+        .confidence-label {
+            font-size: 10px;
+            letter-spacing: 1px;
+            color: var(--text-ghost);
+        }
+
+        .confidence-value {
+            font-family: 'Orbitron', monospace;
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--terminal-green);
+        }
+
+        .price-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .price-box {
+            background: var(--terminal-gray);
+            border: 1px solid var(--text-ghost);
+            padding: 15px;
+            text-align: center;
+        }
+
+        .price-label {
+            font-size: 9px;
+            letter-spacing: 2px;
+            color: var(--text-ghost);
+            margin-bottom: 8px;
+        }
+
+        .price-value {
+            font-family: 'Orbitron', monospace;
+            font-size: 20px;
+            font-weight: 700;
+        }
+
+        .price-box.current .price-value {
+            color: var(--terminal-cyan);
+            font-size: 24px;
+        }
+
+        .price-box.target .price-value {
+            color: var(--terminal-green);
+        }
+
+        .price-box.stop .price-value {
+            color: var(--terminal-red);
+        }
+
+        .analysis-box {
+            background: rgba(0, 255, 65, 0.03);
+            border: 1px solid var(--text-ghost);
+            border-left: 3px solid var(--terminal-green);
+            padding: 15px;
+            margin-bottom: 20px;
+            font-size: 12px;
+            line-height: 1.7;
+            color: var(--text-dim);
+        }
+
+        .tech-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+
+        .tech-item {
+            background: var(--terminal-gray);
+            border: 1px solid var(--text-ghost);
+            padding: 12px;
+            text-align: center;
+        }
+
+        .tech-label {
+            font-size: 9px;
+            letter-spacing: 1px;
+            color: var(--text-ghost);
+            margin-bottom: 6px;
+        }
+
+        .tech-value {
+            font-family: 'Orbitron', monospace;
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--terminal-green);
+        }
+
+        /* Footer */
+        .footer {
+            border: 1px solid var(--terminal-green);
+            padding: 10px 20px;
+            display: flex;
+            justify-content: space-between;
+            font-size: 10px;
+            box-shadow: 0 0 20px rgba(0, 255, 65, 0.3);
+        }
+
+        .footer-item {
+            display: flex;
+            gap: 15px;
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto 1fr;
+            }
+            
+            .assets-panel {
+                flex-direction: row;
+            }
+            
+            .strategy-box {
+                display: none;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .terminal {
+                padding: 10px;
+                gap: 10px;
+            }
+            
+            .sys-info {
+                gap: 10px;
+                font-size: 10px;
+            }
+            
+            .price-section {
+                grid-template-columns: 1fr;
+            }
+            
+            .tech-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="terminal">
+        <!-- Header -->
+        <div class="header">
+            <div class="sys-title">SCALP.SYS</div>
+            <div class="sys-info">
+                <span>TERMINAL v2.1</span>
+                <span>|</span>
+                <span>TARGET: +0.2%</span>
+                <span>|</span>
+                <span>LATENCY: <span id="latency">--</span>ms</span>
+                <span>|</span>
+                <span class="blink">◉ LIVE</span>
+            </div>
+        </div>
+
+        <!-- Main Grid -->
+        <div class="main-grid">
+            <!-- Left Panel -->
+            <div class="assets-panel">
+                <div class="panel">
+                    <div class="panel-title">
+                        <span>SELECT_ASSET</span>
+                        <span class="blink">▌</span>
+                    </div>
+                    <button class="asset-btn" onclick="analyze('XAUUSDT', 'GOLD')">
+                        <div class="asset-name">◆ GOLD</div>
+                        <div class="asset-code">XAU/USDT</div>
+                    </button>
+                    <button class="asset-btn" onclick="analyze('XAGUSDT', 'SILVER')">
+                        <div class="asset-name">◆ SILVER</div>
+                        <div class="asset-code">XAG/USDT</div>
+                    </button>
+                </div>
+
+                <div class="panel strategy-box">
+                    <div class="strategy-label">PROFIT_TARGET</div>
+                    <div class="strategy-value">+0.2%</div>
+                    <div class="strategy-label" style="margin-top: 15px;">SCALP_MODE</div>
+                </div>
+            </div>
+
+            <!-- Right Panel -->
+            <div class="results-panel" id="result">
+                <div class="loading">
+                    <div style="font-size: 40px; color: var(--text-ghost);">◆</div>
+                    <div style="color: var(--text-ghost); letter-spacing: 2px;">AWAITING_INPUT...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <div class="footer-item">
+                <span>5M TIMEFRAME</span>
+                <span>200 SAMPLES</span>
+                <span>7 INDICATORS</span>
+            </div>
+            <div class="footer-item">
+                <span>RSI · EMA · VOL · MOM · ATR</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let startTime;
+
+        async function analyze(symbol, name) {
+            startTime = Date.now();
+            const result = document.getElementById('result');
+            
+            result.innerHTML = '<div class="loading"><div class="spinner"></div><div>SCANNING ' + name + '...</div></div>';
+
+            try {
+                const res = await fetch('https://fapi.binance.com/fapi/v1/klines?symbol=' + symbol + '&interval=5m&limit=200');
+                const data = await res.json();
+                if (!Array.isArray(data)) throw new Error('API_ERROR: Failed to fetch data');
+
+                const candles = data.map(c => ({
+                    close: parseFloat(c[4]),
+                    high: parseFloat(c[2]),
+                    low: parseFloat(c[3]),
+                    volume: parseFloat(c[5])
+                }));
+
+                const analysis = analyzeForScalping(candles);
+                document.getElementById('latency').textContent = (Date.now() - startTime);
+                displayResult(analysis, name);
+            } catch (error) {
+                result.innerHTML = '<div class="loading"><div style="color: var(--terminal-red); font-size: 24px;">ERROR</div><div>' + error.message + '</div></div>';
+            }
+        }
+
+        function analyzeForScalping(candles) {
+            const closes = candles.map(c => c.close);
+            const volumes = candles.map(c => c.volume);
+            const highs = candles.map(c => c.high);
+            const lows = candles.map(c => c.low);
+
+            const price = closes[closes.length - 1];
+            const rsi = calcRSI(closes);
+            const ema9 = calcEMA(closes, 9);
+            const ema21 = calcEMA(closes, 21);
+            const atr = calcATR(highs, lows, closes);
+
+            const avgVol = volumes.slice(-30).reduce((a, b) => a + b) / 30;
+            const volSpike = Math.max(...volumes.slice(-5)) / avgVol;
+            const mom3 = ((price - closes[closes.length - 4]) / closes[closes.length - 4]) * 100;
+            const mom1 = ((price - closes[closes.length - 2]) / closes[closes.length - 2]) * 100;
+
+            let signal = 'NEUTRAL';
+            let reason = '';
+            let conf = 50;
+            let target = price;
+            let stop = price;
+
+            if (rsi < 30 && mom1 > 0.1 && volSpike > 1.8) {
+                signal = 'LONG';
+                conf = 87;
+                target = price * 1.002;
+                stop = price * 0.9985;
+                reason = 'OVERSOLD_BOUNCE // RSI=' + rsi.toFixed(1) + ' // VOL=' + volSpike.toFixed(1) + 'x // Immediate reversal pattern detected. Quick scalp setup for +0.2% target with tight 0.15% stop.';
+            } else if (rsi > 70 && mom1 < -0.1 && volSpike > 1.8) {
+                signal = 'SHORT';
+                conf = 87;
+                target = price * 0.998;
+                stop = price * 1.0015;
+                reason = 'OVERBOUGHT_REJECTION // RSI=' + rsi.toFixed(1) + ' // VOL=' + volSpike.toFixed(1) + 'x // Immediate reversal pattern detected. Quick scalp setup for -0.2% target with tight 0.15% stop.';
+            } else if (mom3 > 0.8 && price > ema9 && volSpike > 1.5) {
+                signal = 'LONG';
+                conf = 79;
+                target = price * 1.002;
+                stop = price * 0.9985;
+                reason = 'MICRO_MOMENTUM_SURGE // MOM=' + mom3.toFixed(2) + '% // Price above EMA9 with volume confirmation. Scalp long for +0.2% with tight stop loss.';
+            } else if (mom3 < -0.8 && price < ema9 && volSpike > 1.5) {
+                signal = 'SHORT';
+                conf = 79;
+                target = price * 0.998;
+                stop = price * 1.0015;
+                reason = 'MICRO_MOMENTUM_DROP // MOM=' + mom3.toFixed(2) + '% // Price below EMA9 with volume confirmation. Scalp short for -0.2% with tight stop loss.';
+            } else if (rsi < 35 && mom1 > 0.05) {
+                signal = 'LONG';
+                conf = 73;
+                target = price * 1.002;
+                stop = price * 0.9985;
+                reason = 'SCALP_ZONE // RSI oversold + micro-bounce detected. Quick entry for 0.2% profit target. Monitor closely for exit.';
+            } else if (rsi > 65 && mom1 < -0.05) {
+                signal = 'SHORT';
+                conf = 73;
+                target = price * 0.998;
+                stop = price * 1.0015;
+                reason = 'SCALP_ZONE // RSI overbought + micro-drop detected. Quick entry for 0.2% profit target. Monitor closely for exit.';
+            } else {
+                reason = 'NO_SETUP // RSI=' + rsi.toFixed(1) + ' // MOM_1BAR=' + mom1.toFixed(3) + '% // VOL=' + volSpike.toFixed(2) + 'x // Awaiting clear volatility spike for micro-profit scalp entry.';
+            }
+
+            const profitUSD = Math.abs(target - price);
+            const rr = signal !== 'NEUTRAL' ? Math.abs((target - price) / (stop - price)) : 0;
+
+            return {
+                signal, conf,
+                price: price.toFixed(price > 1000 ? 2 : 4),
+                target: target.toFixed(price > 1000 ? 2 : 4),
+                stop: stop.toFixed(price > 1000 ? 2 : 4),
+                profitUSD: profitUSD.toFixed(price > 1000 ? 2 : 4),
+                rr: rr.toFixed(2),
+                reason,
+                rsi: rsi.toFixed(1),
+                ema9: ema9.toFixed(price > 1000 ? 2 : 4),
+                ema21: ema21.toFixed(price > 1000 ? 2 : 4),
+                volume: volSpike.toFixed(2),
+                momentum: mom1.toFixed(3),
+                atr: atr.toFixed(price > 1000 ? 2 : 4)
+            };
+        }
+
+        function calcRSI(prices) {
+            const period = 14;
+            if (prices.length < period + 1) return 50;
+            let gains = 0, losses = 0;
+            for (let i = prices.length - period; i < prices.length; i++) {
+                const change = prices[i] - prices[i - 1];
+                if (change > 0) gains += change;
+                else losses -= change;
+            }
+            const rs = (gains / period) / (losses / period || 1);
+            return 100 - (100 / (1 + rs));
+        }
+
+        function calcEMA(prices, period) {
+            if (prices.length < period) return prices[prices.length - 1];
+            const k = 2 / (period + 1);
+            let ema = prices.slice(0, period).reduce((a, b) => a + b) / period;
+            for (let i = period; i < prices.length; i++) {
+                ema = (prices[i] - ema) * k + ema;
+            }
+            return ema;
+        }
+
+        function calcATR(highs, lows, closes) {
+            const period = 14;
+            if (highs.length < period + 1) return 0.02;
+            let sum = 0;
+            for (let i = highs.length - period; i < highs.length; i++) {
+                const tr = Math.max(
+                    highs[i] - lows[i],
+                    Math.abs(highs[i] - closes[i - 1]),
+                    Math.abs(lows[i] - closes[i - 1])
+                );
+                sum += tr;
+            }
+            return sum / period;
+        }
+
+        function displayResult(r, asset) {
+            const result = document.getElementById('result');
+            
+            result.innerHTML = `
+                <div class="signal-header">
+                    <div class="signal-direction ${r.signal.toLowerCase()}">${r.signal}</div>
+                    <div class="confidence">
+                        <div class="confidence-label">CONFIDENCE</div>
+                        <div class="confidence-value">${r.conf}%</div>
+                    </div>
+                </div>
+
+                <div class="price-section">
+                    <div class="price-box current">
+                        <div class="price-label">CURRENT_PRICE</div>
+                        <div class="price-value">$${r.price}</div>
+                    </div>
+                    ${r.signal !== 'NEUTRAL' ? `
+                        <div class="price-box target">
+                            <div class="price-label">TARGET (+0.2%)</div>
+                            <div class="price-value">$${r.target}</div>
+                        </div>
+                        <div class="price-box stop">
+                            <div class="price-label">STOP (-0.15%)</div>
+                            <div class="price-value">$${r.stop}</div>
+                        </div>
+                    ` : `
+                        <div class="price-box">
+                            <div class="price-label">TARGET</div>
+                            <div class="price-value">--</div>
+                        </div>
+                        <div class="price-box">
+                            <div class="price-label">STOP</div>
+                            <div class="price-value">--</div>
+                        </div>
+                    `}
+                </div>
+
+                <div class="analysis-box">
+                    > ${r.reason}
+                </div>
+
+                <div class="tech-grid">
+                    <div class="tech-item">
+                        <div class="tech-label">RSI_14</div>
+                        <div class="tech-value">${r.rsi}</div>
+                    </div>
+                    <div class="tech-item">
+                        <div class="tech-label">VOL_SPIKE</div>
+                        <div class="tech-value">${r.volume}x</div>
+                    </div>
+                    <div class="tech-item">
+                        <div class="tech-label">MOM_1BAR</div>
+                        <div class="tech-value">${r.momentum}%</div>
+                    </div>
+                    <div class="tech-item">
+                        <div class="tech-label">EMA_9</div>
+                        <div class="tech-value">$${r.ema9}</div>
+                    </div>
+                    <div class="tech-item">
+                        <div class="tech-label">EMA_21</div>
+                        <div class="tech-value">$${r.ema21}</div>
+                    </div>
+                    <div class="tech-item">
+                        <div class="tech-label">ATR_14</div>
+                        <div class="tech-value">$${r.atr}</div>
+                    </div>
+                    ${r.signal !== 'NEUTRAL' ? `
+                        <div class="tech-item">
+                            <div class="tech-label">PROFIT_USD</div>
+                            <div class="tech-value">$${r.profitUSD}</div>
+                        </div>
+                        <div class="tech-item">
+                            <div class="tech-label">RISK_REWARD</div>
+                            <div class="tech-value">${r.rr}:1</div>
+                        </div>
+                        <div class="tech-item">
+                            <div class="tech-label">ASSET</div>
+                            <div class="tech-value">${asset}</div>
+                        </div>
+                    ` : `
+                        <div class="tech-item">
+                            <div class="tech-label">STATUS</div>
+                            <div class="tech-value" style="color: var(--terminal-cyan);">WAIT</div>
+                        </div>
+                    `}
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>
