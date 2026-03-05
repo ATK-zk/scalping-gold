@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HL_SCANNER // HYPERLIQUID</title>
+    <title>Hyperliquid Terminal</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -84,8 +84,8 @@
 
         .header-center { text-align:center; }
         .logo {
-            font-size: 2em;
-            letter-spacing: 8px;
+            font-size: 1.7em;
+            letter-spacing: 5px;
             color: var(--green);
             text-shadow: 0 0 10px var(--green), 0 0 30px var(--green), 0 0 60px rgba(0,255,65,0.4);
             animation: glitch 5s infinite;
@@ -441,7 +441,7 @@
 <!-- BOOT SEQUENCE -->
 <div id="bootOverlay">
     <div id="bootText">
-        <div>> HYPERLIQUID SCANNER TERMINAL v5.0</div>
+        <div>> HYPERLIQUID SCANNER TERMINAL</div>
         <div>> INITIALIZING SECURE CONNECTION<span class="loading-anim"></span></div>
         <div>> LOADING ASSET DATABASE<span class="loading-anim"></span></div>
         <div>> SYSTEM READY ■</div>
@@ -461,7 +461,7 @@
         </div>
 
         <div class="header-center">
-            <div class="logo" data-text="HL_SCANNER">HL_SCANNER</div>
+            <div class="logo" data-text="HYPERLIQUID TERMINAL">HYPERLIQUID TERMINAL</div>
             <div class="logo-sub">multi-asset · real-time · supply &amp; demand</div>
         </div>
 
@@ -492,9 +492,9 @@
             <div class="control-group">
                 <label>TRADING MODE</label>
                 <select id="tradingMode" class="ctrl-field" onchange="onModeChange()">
-                    <option value="scalp" selected>⚡ SCALPING  </option>
-                    <option value="day">📈 DAY TRADE  </option>
-                    <option value="swing">🌊 SWING TRADE  </option>
+                    <option value="scalp" selected>⚡ SCALPING</option>
+                    <option value="day">📈 DAY TRADE</option>
+                    <option value="swing">🌊 SWING TRADE</option>
                 </select>
             </div>
 
@@ -725,6 +725,7 @@ async function loadDynamicAssets() {
         const data = await res.json();
         if (data && data.universe) {
             const existing = new Set(allAssets.map(a => a.coin));
+            // Append new assets from API at end of CRYPTO — keep original order (popularity)
             const newA = data.universe
                 .filter(u => !existing.has(u.name))
                 .map(u => ({coin: u.name, label: u.name, cat:'CRYPTO'}));
@@ -735,19 +736,28 @@ async function loadDynamicAssets() {
 }
 
 // =====================================================================
-//  DROPDOWN
+//  DROPDOWN  — shows ALL assets, grouped by category, original order
 // =====================================================================
 function renderDropdown(q) {
     const dd = document.getElementById('assetDropdown');
     const lq = q.toLowerCase().trim();
     const addedCoins = new Set(scannerAssets.map(a => a.coin));
     let list = allAssets.filter(a => !addedCoins.has(a.coin));
-    if (lq) list = list.filter(a => a.label.toLowerCase().includes(lq) || a.coin.toLowerCase().includes(lq));
-    list = list.slice(0, 60);
 
-    if (list.length === 0) { dd.innerHTML = '<div class="no-results">NO RESULTS</div>'; return; }
+    if (lq) {
+        list = list.filter(a =>
+            a.label.toLowerCase().includes(lq) ||
+            a.coin.toLowerCase().includes(lq) ||
+            a.cat.toLowerCase().includes(lq)
+        );
+    }
 
-    // Group by cat
+    if (list.length === 0) {
+        dd.innerHTML = `<div class="no-results">NO RESULTS</div>`;
+        return;
+    }
+
+    // Group by category — preserve insertion order within each group (= popularity)
     const groups = {};
     const catOrder = ['CRYPTO','STOCK','ETF','COMMODITY','INDEX','FOREX'];
     list.forEach(a => { if (!groups[a.cat]) groups[a.cat]=[]; groups[a.cat].push(a); });
@@ -755,14 +765,18 @@ function renderDropdown(q) {
     let html = '';
     catOrder.forEach(cat => {
         if (!groups[cat] || !groups[cat].length) return;
-        html += `<div class="dd-section-header">${cat} (${groups[cat].length})</div>`;
+        html += `<div class="dd-section-header">${cat}</div>`;
         groups[cat].forEach(a => {
-            html += `<div class="asset-opt" onclick="addAsset('${a.coin}','${a.label}','${a.cat}')">
+            const safeLabel = a.label.replace(/'/g, "\\'");
+            const safeCat   = a.cat.replace(/'/g, "\\'");
+            const safeCoin  = a.coin.replace(/'/g, "\\'");
+            html += `<div class="asset-opt" onclick="addAsset('${safeCoin}','${safeLabel}','${safeCat}')">
                         <span>${a.label}</span>
                         <span class="cat-badge">[${a.cat}]</span>
                      </div>`;
         });
     });
+
     dd.innerHTML = html;
 }
 
@@ -1011,18 +1025,21 @@ function calculateVolatility(highs, lows, closes, period = 5) {
 
 
 // =====================================================================
-//  TRADING MODE CONFIG
+//  TRADING MODE CONFIG  — แต่ละโหมดใช้ strategy ต่างกัน
 // =====================================================================
 const MODES = {
     scalp: {
         label: 'SCALPING',    key: 'scalp',
-        timeframe: '1m',
-        rsiPeriod: 7,         rsiOversold: 35,   rsiOverbought: 65,
-        volLookback: 10,      volThreshold: 1.15,
+        timeframe: '5m',                         // ← เปลี่ยน 1m → 5m ลด noise
+        rsiPeriod: 14,        rsiOversold: 35,   rsiOverbought: 65,
+        volLookback: 10,      volThreshold: 1.3, // ต้องการ volume spike ชัด
         candleLimit: 200,     sdLookback: 40,
         momPeriod: 3,         momThresh: 0.05,
         holdLabel: '< 1HR',   refreshSec: 5,
-        fallbackTP: 0.005,    fallbackSL: 0.003,   // 0.5% TP, 0.3% SL
+        fallbackTP: 0.008,    fallbackSL: 0.004, // 0.8% TP, 0.4% SL — cover fee ได้
+        // STRATEGY: EMA9 x EMA21 crossover + volume spike
+        strategy: 'ema_cross',
+        emaFast: 9, emaSlow: 21,
     },
     day: {
         label: 'DAY TRADE',   key: 'day',
@@ -1031,20 +1048,128 @@ const MODES = {
         volLookback: 20,      volThreshold: 1.08,
         candleLimit: 200,     sdLookback: 60,
         momPeriod: 6,         momThresh: 0.2,
-        holdLabel: '1-24HRS', refreshSec: 15,
-        fallbackTP: 0.02,     fallbackSL: 0.01,    // 2% TP, 1% SL
+        holdLabel: '1-24HRS', refreshSec: 5,
+        fallbackTP: 0.02,     fallbackSL: 0.01,
+        // STRATEGY: RSI + EMA20 trend (เดิม — ทำกำไรได้แล้ว)
+        strategy: 'rsi_trend',
     },
     swing: {
         label: 'SWING TRADE', key: 'swing',
-        timeframe: '1h',
-        rsiPeriod: 14,        rsiOversold: 38,   rsiOverbought: 62,
+        timeframe: '4h',                         // ← เปลี่ยน 1h → 4h ชัดขึ้น
+        rsiPeriod: 14,        rsiOversold: 40,   rsiOverbought: 60,
         volLookback: 20,      volThreshold: 1.05,
         candleLimit: 200,     sdLookback: 80,
         momPeriod: 10,        momThresh: 0.4,
-        holdLabel: '1-7 DAYS',refreshSec: 30,
-        fallbackTP: 0.05,     fallbackSL: 0.025,   // 5% TP, 2.5% SL
+        holdLabel: '1-7 DAYS',refreshSec: 5,
+        fallbackTP: 0.06,     fallbackSL: 0.03,  // 6% TP, 3% SL
+        // STRATEGY: MACD + EMA50 trend + RSI confirm
+        strategy: 'macd_trend',
+        macdFast: 12, macdSlow: 26, macdSignal: 9,
+        emaTrend: 50,
     }
 };
+
+// =====================================================================
+//  SIGNAL COMPUTATION  — แยกตาม strategy
+// =====================================================================
+function computeSignal(closes, volumes, mode) {
+    const m = mode || getCurrentMode();
+    if (closes.length < 30) return { rsi: null, volRatio: 1, momentum: 0, signal: null };
+
+    const avgVol   = calculateSMA(volumes, m.volLookback);
+    const curVol   = volumes[volumes.length - 1];
+    const volRatio = avgVol > 0 ? (curVol / avgVol) : 1;
+    const rsi      = calculateRSI(closes, m.rsiPeriod);
+    const last     = closes[closes.length - 1];
+    const momentum = closes.length > m.momPeriod
+        ? ((last - closes[closes.length - 1 - m.momPeriod]) / closes[closes.length - 1 - m.momPeriod]) * 100
+        : 0;
+
+    let signal = null;
+
+    // ── SCALPING: EMA9 x EMA21 Crossover + Volume ─────────────────────
+    if (m.strategy === 'ema_cross') {
+        if (closes.length < m.emaSlow + 5) return { rsi, volRatio, momentum, signal: null };
+
+        const emaFastNow  = calculateEMA(closes, m.emaFast);
+        const emaSlowNow  = calculateEMA(closes, m.emaSlow);
+        const emaFastPrev = calculateEMA(closes.slice(0, -1), m.emaFast);
+        const emaSlowPrev = calculateEMA(closes.slice(0, -1), m.emaSlow);
+
+        if (!emaFastNow || !emaSlowNow || !emaFastPrev || !emaSlowPrev)
+            return { rsi, volRatio, momentum, signal: null };
+
+        const crossedUp   = emaFastPrev <= emaSlowPrev && emaFastNow > emaSlowNow;
+        const crossedDown = emaFastPrev >= emaSlowPrev && emaFastNow < emaSlowNow;
+        const volOk       = volRatio >= m.volThreshold;
+
+        // RSI filter — กรองสัญญาณ false ในแดน overbought/oversold
+        const rsiOkBuy  = rsi != null && rsi < 70;
+        const rsiOkSell = rsi != null && rsi > 30;
+
+        if      (crossedUp   && volOk && rsiOkBuy)  signal = 'BUY';
+        else if (crossedDown && volOk && rsiOkSell) signal = 'SELL';
+        else if (crossedUp   && rsiOkBuy)           signal = 'WEAK BUY';
+        else if (crossedDown && rsiOkSell)          signal = 'WEAK SELL';
+    }
+
+    // ── DAY TRADE: RSI Oversold/Overbought + EMA20 Trend ─────────────
+    else if (m.strategy === 'rsi_trend') {
+        if (closes.length < 22) return { rsi, volRatio, momentum, signal: null };
+
+        const ema20   = calculateEMA(closes, 20);
+        const volBoost = volRatio >= m.volThreshold ? 1 : 0;
+
+        let buy = 0, sell = 0;
+        if (rsi != null) {
+            if      (rsi < m.rsiOversold)    buy  += 3;
+            else if (rsi < 45)               buy  += 1;
+            if      (rsi > m.rsiOverbought)  sell += 3;
+            else if (rsi > 55)               sell += 1;
+        }
+        if (momentum >  m.momThresh) buy++;
+        if (momentum < -m.momThresh) sell++;
+        const prev = closes[closes.length - 2];
+        if (last > prev) buy++; else if (last < prev) sell++;
+        if (ema20) { if (last > ema20) buy++; else sell++; }
+
+        if      (buy  >= 3) signal = (buy  + volBoost >= 4) ? 'BUY'      : 'WEAK BUY';
+        else if (sell >= 3) signal = (sell + volBoost >= 4) ? 'SELL'     : 'WEAK SELL';
+        else if (buy  >= 2) signal = 'WEAK BUY';
+        else if (sell >= 2) signal = 'WEAK SELL';
+    }
+
+    // ── SWING TRADE: MACD + EMA50 Trend + RSI Confirm ────────────────
+    else if (m.strategy === 'macd_trend') {
+        if (closes.length < m.macdSlow + m.macdSignal + 5)
+            return { rsi, volRatio, momentum, signal: null };
+
+        const macd   = calculateMACD(closes, m.macdFast, m.macdSlow, m.macdSignal);
+        const ema50  = calculateEMA(closes, m.emaTrend);
+        if (!macd || !ema50) return { rsi, volRatio, momentum, signal: null };
+
+        const { macdLine, signalLine, histogram, prevHistogram } = macd;
+
+        // MACD cross: histogram เปลี่ยนทิศ
+        const macdCrossUp   = prevHistogram <= 0 && histogram > 0;
+        const macdCrossDown = prevHistogram >= 0 && histogram < 0;
+
+        // Trend filter: price อยู่เหนือ/ใต้ EMA50
+        const upTrend   = last > ema50;
+        const downTrend = last < ema50;
+
+        // RSI confirm: ไม่ trade ใน extreme zone
+        const rsiOkBuy  = rsi != null && rsi > 30 && rsi < 70;
+        const rsiOkSell = rsi != null && rsi > 30 && rsi < 70;
+
+        if      (macdCrossUp   && upTrend   && rsiOkBuy)  signal = 'BUY';
+        else if (macdCrossDown && downTrend && rsiOkSell) signal = 'SELL';
+        else if (macdCrossUp   && rsiOkBuy)               signal = 'WEAK BUY';
+        else if (macdCrossDown && rsiOkSell)              signal = 'WEAK SELL';
+    }
+
+    return { rsi, volRatio, momentum, signal };
+}
 
 function getCurrentMode() {
     return MODES[document.getElementById('tradingMode').value] || MODES.scalp;
@@ -1052,15 +1177,41 @@ function getCurrentMode() {
 
 function onModeChange() {
     const m = getCurrentMode();
+    const stratLabel = m.strategy === 'ema_cross'  ? `EMA${m.emaFast}×${m.emaSlow}` :
+                       m.strategy === 'macd_trend' ? `MACD+EMA${m.emaTrend}` : 'RSI+EMA20';
     document.getElementById('strategyBox').textContent =
-        `RSI:${m.rsiPeriod} | TF:${m.timeframe.toUpperCase()} | TP/SL: S/D ZONE`;
+        `${m.timeframe.toUpperCase()} | ${stratLabel} | S/D`;
     assetData = {};
     renderTable();
     restartLoop();
 }
 
 // =====================================================================
-//  SUPPLY / DEMAND ZONE DETECTION
+//  MACD INDICATOR
+// =====================================================================
+function calculateMACD(closes, fast, slow, signal) {
+    if (closes.length < slow + signal + 2) return null;
+    const emaFastArr = [], emaSlowArr = [];
+    const kf = 2/(fast+1), ks = 2/(slow+1), kg = 2/(signal+1);
+    let ef = closes.slice(0,fast).reduce((a,b)=>a+b,0)/fast;
+    let es = closes.slice(0,slow).reduce((a,b)=>a+b,0)/slow;
+    for (let i = fast; i < closes.length; i++) { ef = closes[i]*kf + ef*(1-kf); emaFastArr.push({i,v:ef}); }
+    for (let i = slow; i < closes.length; i++) { es = closes[i]*ks + es*(1-ks); emaSlowArr.push({i,v:es}); }
+    const macdLine = [];
+    for (const sf of emaFastArr) {
+        const match = emaSlowArr.find(s=>s.i===sf.i);
+        if (match) macdLine.push({i:sf.i, v:sf.v-match.v});
+    }
+    if (macdLine.length < signal + 2) return null;
+    let sig = macdLine.slice(0,signal).reduce((a,b)=>a+b.v,0)/signal;
+    for (let i = signal; i < macdLine.length; i++) { sig = macdLine[i].v*kg + sig*(1-kg); }
+    const last = macdLine[macdLine.length-1].v;
+    const prev2 = macdLine[macdLine.length-2].v;
+    const histogram = last - sig;
+    const prevHistogram = prev2 - sig;
+    return { macdLine: last, signalLine: sig, histogram, prevHistogram };
+}
+
 // =====================================================================
 function findSDZones(highs, lows, closes, lookback) {
     const n = Math.min(lookback, highs.length);
@@ -1403,6 +1554,10 @@ function drawChart(candles, label, assetInfo) {
             xanchor:'left'
         });
     }
+
+    // Clear any loading overlay before Plotly renders
+    const chartEl = document.getElementById('chartContainer');
+    chartEl.innerHTML = '';
 
     Plotly.newPlot('chartContainer', traces, {
         title: '',
