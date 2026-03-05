@@ -420,33 +420,115 @@
         ::-webkit-scrollbar-thumb:hover { background:var(--green); }
 
         /* MISC */
-        .loading-anim::after { content:''; animation:dots 1s infinite; }
-        @keyframes dots { 0%{content:'.'} 33%{content:'..'} 66%{content:'...'} 100%{content:''} }
+        .loading-anim::after {
+            content: '...';
+            display: inline-block;
+            width: 1.8em;
+            text-align: left;
+            animation: dots 1.2s steps(1) infinite;
+        }
+        @keyframes dots {
+            0%  { content: '.'; }
+            33% { content: '..'; }
+            66% { content: '...'; }
+        }
         .loading { text-align:center; color:var(--green); padding:40px; opacity:0.4; }
 
-        /* BOOT TEXT */
-        #bootOverlay {
-            position:fixed; inset:0; background:#000; z-index:99999;
-            display:flex; align-items:center; justify-content:center;
-            flex-direction:column; gap:6px;
-            font-size:0.8em; color:var(--green); padding:40px;
-            animation: fadeOut 0.4s ease 2.2s forwards;
+        /* ================================================================
+           MOBILE RESPONSIVE  (≤768px)
+        ================================================================ */
+        @media (max-width: 768px) {
+
+            body { padding: 8px 10px 24px; }
+
+            /* Header: ซ่อน left/right info — แสดงแค่ logo กลาง */
+            .header {
+                grid-template-columns: 1fr;
+                justify-items: center;
+                padding: 12px 14px;
+                margin-bottom: 10px;
+            }
+            .header-left,
+            .header-right { display: none; }
+            .logo { font-size: 1.2em; letter-spacing: 3px; }
+            .logo-sub { font-size: 0.6em; letter-spacing: 2px; }
+
+            /* Terminal bar ซ่อน command line text */
+            .terminal { padding: 10px 12px; margin-bottom: 10px; }
+            .terminal-bar span:last-child { display: none; }
+            .terminal-bar { margin-bottom: 10px; }
+
+            /* Controls: 1 column stack ยกเว้น strategy+clear อยู่คู่กัน */
+            .controls {
+                grid-template-columns: 1fr;
+                gap: 10px;
+            }
+            .controls-bottom-row {
+                display: grid !important;
+                grid-template-columns: 1fr 1fr;
+                gap: 10px;
+            }
+
+            /* Status bar ย่อ text */
+            .status { padding: 7px 10px; font-size: 0.7em; letter-spacing: 1px; }
+            .status-time { display: none; }
+
+            /* Panel padding ลด */
+            .panel { padding: 10px 10px; }
+            .panel h2 { font-size: 0.82em; letter-spacing: 2px; margin-bottom: 8px; }
+
+            /* Scanner table: ซ่อน column ไม่จำเป็น */
+            .scanner-table { min-width: unset; font-size: 0.78em; }
+            .scanner-table th,
+            .scanner-table td { padding: 7px 6px; }
+
+            /* ซ่อน column: VOL RATIO, MOMENTUM, VOLATILITY, 24H HIGH, 24H LOW */
+            .col-volratio, .col-momentum, .col-volatility,
+            .col-high, .col-low { display: none; }
+
+            /* RSI mini bar ซ่อน — แสดงแค่ตัวเลข */
+            .rsi-mini-bar { display: none; }
+
+            /* Bottom grid: stack chart บน, detail ล่าง */
+            .bottom-grid {
+                grid-template-columns: 1fr;
+                gap: 10px;
+                margin-top: 10px;
+            }
+
+            /* Chart สูงลด */
+            .chart-container { height: 280px; }
+
+            /* Detail panel: price ใหญ่ขึ้นนิด, info-grid 2 col */
+            .price-display { font-size: 1.7em; }
+            .info-grid { grid-template-columns: 1fr 1fr; gap: 5px; }
+            .info-item { padding: 5px 6px; }
+            .info-label { font-size: 0.6em; }
+            .info-value { font-size: 0.88em; }
+
+            /* Signal box compact */
+            .signal-box { font-size: 0.9em; padding: 10px 8px; letter-spacing: 2px; }
+
+            /* TP/SL box */
+            .tp-sl-row { font-size: 0.82em; }
+
+            /* Dropdown สูงลด */
+            .asset-dropdown { max-height: 220px; }
+
+            /* Scrollbar ใหญ่ขึ้นสำหรับ touch */
+            ::-webkit-scrollbar { width: 4px; height: 4px; }
         }
-        @keyframes fadeOut { to { opacity:0; pointer-events:none; } }
-        #bootText { max-width:600px; line-height:1.9; opacity:0.8; }
+
+        /* Extra small (≤400px) */
+        @media (max-width: 400px) {
+            .logo { font-size: 1em; letter-spacing: 2px; }
+            .chart-container { height: 240px; }
+            .scanner-table { font-size: 0.72em; }
+            .scanner-table th, .scanner-table td { padding: 6px 4px; }
+        }
     </style>
 </head>
 <body>
-
-<!-- BOOT SEQUENCE -->
-<div id="bootOverlay">
-    <div id="bootText">
-        <div>> HYPERLIQUID SCANNER TERMINAL</div>
-        <div>> INITIALIZING SECURE CONNECTION<span class="loading-anim"></span></div>
-        <div>> LOADING ASSET DATABASE<span class="loading-anim"></span></div>
-        <div>> SYSTEM READY ■</div>
-    </div>
-</div>
 
 <div class="scanlines"></div>
 <div class="matrix-bg" id="matrixBg"></div>
@@ -498,15 +580,17 @@
                 </select>
             </div>
 
-            <div class="control-group">
-                <label>STRATEGY</label>
-                <div class="strategy-box" id="strategyBox">RSI:7 | 1M | S/D ZONE</div>
-            </div>
+            <div class="controls-bottom-row" style="display:contents;">
+                <div class="control-group">
+                    <label>STRATEGY</label>
+                    <div class="strategy-box" id="strategyBox">RSI:7 | 1M | S/D ZONE</div>
+                </div>
 
-            <div class="control-group">
-                <label>ACTION</label>
-                <div class="ctrl-btns">
-                    <button onclick="clearAll()" style="border-color:#ff2244;color:#ff2244;">⌫ CLEAR ALL</button>
+                <div class="control-group">
+                    <label>ACTION</label>
+                    <div class="ctrl-btns">
+                        <button onclick="clearAll()" style="border-color:#ff2244;color:#ff2244;">⌫ CLEAR ALL</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -533,11 +617,11 @@
                         <th>PRICE</th>
                         <th>CHG%</th>
                         <th>RSI</th>
-                        <th>VOL RATIO</th>
-                        <th>MOMENTUM</th>
-                        <th>VOLATILITY</th>
-                        <th>24H HIGH</th>
-                        <th>24H LOW</th>
+                        <th class="col-volratio">VOL RATIO</th>
+                        <th class="col-momentum">MOMENTUM</th>
+                        <th class="col-volatility">VOLATILITY</th>
+                        <th class="col-high">24H HIGH</th>
+                        <th class="col-low">24H LOW</th>
                         <th>SIGNAL</th>
                         <th>TP TARGET</th>
                         <th>SL TARGET</th>
@@ -881,11 +965,11 @@ function renderTable() {
                     <div class="rsi-mini-bar"><div class="rsi-mini-fill" style="width:${rsiPct}%;background:${rsiColor}"></div></div>
                 </div>
             </td>
-            <td>${d.volRatio != null ? d.volRatio.toFixed(2)+'x' : '-'}</td>
-            <td>${d.momentum != null ? d.momentum.toFixed(3)+'%' : '-'}</td>
-            <td>${d.volatility != null ? fmtS(d.volatility) : '-'}</td>
-            <td>$${fmt(d.high24)}</td>
-            <td>$${fmt(d.low24)}</td>
+            <td class="col-volratio">${d.volRatio != null ? d.volRatio.toFixed(2)+'x' : '-'}</td>
+            <td class="col-momentum">${d.momentum != null ? d.momentum.toFixed(3)+'%' : '-'}</td>
+            <td class="col-volatility">${d.volatility != null ? fmtS(d.volatility) : '-'}</td>
+            <td class="col-high">$${fmt(d.high24)}</td>
+            <td class="col-low">$${fmt(d.low24)}</td>
             <td><span class="sig-badge ${sigClass}">${sigText}</span></td>
             <td style="color:${d.isShort?'#ff0000':'#00ff00'}">$${fmt(d.tp)} <span style="font-size:0.8em;opacity:0.7">(${d.tpPct>=0?'+':''}${d.tpPct.toFixed(2)}%)</span></td>
             <td style="color:${d.isShort?'#00ff00':'#ff0000'}">$${fmt(d.sl)} <span style="font-size:0.8em;opacity:0.7">(${d.slPct>=0?'+':''}${d.slPct.toFixed(2)}%)</span></td>
@@ -1658,11 +1742,6 @@ window.addEventListener('load', () => {
     updateClock();
     setInterval(updateClock, 1000);
 
-    // Remove boot overlay
-    setTimeout(() => {
-        const b = document.getElementById('bootOverlay');
-        if (b) b.remove();
-    }, 2800);
 });
 </script>
 </body>
